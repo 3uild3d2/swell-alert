@@ -1,6 +1,7 @@
 const axios = require('axios');
 const config = require('../config');
 const { calculateWaveEnergy } = require('../utils/math');
+const { log } = require('../utils/logger');
 
 const getCurrentConditions = async () => {
   try {
