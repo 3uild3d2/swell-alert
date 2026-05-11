@@ -21,28 +21,24 @@ const resetAlertState = () => {
 };
 
 /**
- * Verifica se deve enviar o alerta baseado no tempo e na evolução da altura
+ * Verifica se deve enviar o alerta baseado na evolução da altura
  */
 const shouldAlert = (currentHeight) => {
-  // Caso 1: Novo swell (estava calmo e subiu)
-  if (!isSwellActive) return true;
-
-  // Caso 2: Swell em andamento - Verifica cooldown de 6 horas
-  const now = Date.now();
-  const cooldownMs = config.cooldownHours * 60 * 60 * 1000;
-  const cooldownPassed = !lastAlertTimestamp || (now - lastAlertTimestamp) >= cooldownMs;
-
-  if (cooldownPassed) {
-    // Só avisa se o mar SUBIR em relação ao último alerta enviado
-    if (currentHeight > lastAlertWaveHeight) {
-      log(`Cooldown de ${config.cooldownHours}h passou e o mar subiu (${lastAlertWaveHeight}m -> ${currentHeight}m). Enviando novo alerta.`, 'info');
-      return true;
-    } else {
-      log(`Cooldown de ${config.cooldownHours}h passou, mas o mar não subiu (${currentHeight}m <= ${lastAlertWaveHeight}m). Silêncio mantido.`, 'info');
-      return false;
-    }
+  // Caso 1: Novo swell ou reset após queda
+  if (!isSwellActive) {
+    log(`Novo evento de swell detectado (${currentHeight}m).`, 'info');
+    return true;
   }
 
+  // Caso 2: Swell em andamento - Regra de Subida
+  // Se o mar subiu em relação ao último alerta, avisa na hora (ignora cooldown)
+  if (currentHeight > lastAlertWaveHeight) {
+    log(`O mar subiu (${lastAlertWaveHeight}m -> ${currentHeight}m). Enviando novo alerta imediatamente.`, 'info');
+    return true;
+  }
+
+  // Caso 3: Mar igual ou menor
+  log(`O mar não subiu (${currentHeight}m <= ${lastAlertWaveHeight}m). Silêncio mantido.`, 'info');
   return false;
 };
 
