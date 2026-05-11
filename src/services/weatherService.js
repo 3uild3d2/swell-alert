@@ -17,14 +17,24 @@ const getCurrentConditions = async () => {
     const hourlyMarine = marineRes.data.hourly;
     const hourlyWeather = weatherRes.data.hourly;
 
+    // Helper para extrair dados mesmo quando o nome da chave muda (ex: wave_height_ecmwf_ifs)
+    const getHourlyData = (obj, prefix) => {
+      const key = Object.keys(obj).find(k => k.startsWith(prefix));
+      return obj[key];
+    };
+
+    const waveHeights = getHourlyData(hourlyMarine, 'wave_height');
+    const waveDirections = getHourlyData(hourlyMarine, 'wave_direction');
+    const windSpeeds = getHourlyData(hourlyWeather, 'wind_speed_10m');
+    const windDirections = getHourlyData(hourlyWeather, 'wind_direction_10m');
+
     // 2. Encontra o PICO de onda nos próximos 7 dias
     let maxWaveHeight = -1;
     let peakIndex = 0;
 
-    // Log para depuração (ver picos diários)
     const dailyMaxes = {};
     
-    hourlyMarine.wave_height.forEach((height, index) => {
+    waveHeights.forEach((height, index) => {
       const date = hourlyMarine.time[index].split('T')[0];
       if (!dailyMaxes[date] || height > dailyMaxes[date]) {
         dailyMaxes[date] = height;
@@ -36,19 +46,18 @@ const getCurrentConditions = async () => {
       }
     });
 
-    log('Picos detectados para a semana:', 'info');
+    log('Picos detectados para a semana (Modelo ECMWF):', 'info');
     Object.entries(dailyMaxes).forEach(([date, peak]) => {
       log(`${date}: ${peak}m`, 'info');
     });
 
     // 3. Extrai os dados completos do momento desse pico
-    const waveHeight = hourlyMarine.wave_height[peakIndex];
-    const waveDirection = hourlyMarine.wave_direction[peakIndex];
+    const waveHeight = waveHeights[peakIndex];
+    const waveDirection = waveDirections[peakIndex];
     const waveEnergy = calculateWaveEnergy(waveHeight);
     
-    // O vento no momento do pico da onda
-    const windSpeed = hourlyWeather.wind_speed_10m[peakIndex];
-    const windDirection = hourlyWeather.wind_direction_10m[peakIndex];
+    const windSpeed = windSpeeds[peakIndex];
+    const windDirection = windDirections[peakIndex];
     const time = hourlyMarine.time[peakIndex];
 
     return {
