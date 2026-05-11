@@ -14,49 +14,88 @@ const getCurrentConditions = async () => {
       headers: { 'Authorization': config.stormglassApiKey }
     });
 
+    if (!response.data || !Array.isArray(response.data.hours)) {
+      log('Resposta inválida do Stormglass: Propriedade "hours" não encontrada.', 'error');
+      if (response.data) log(`Corpo da resposta: ${JSON.stringify(response.data).substring(0, 500)}...`, 'debug');
+      throw new Error('Formato de resposta inesperado do Stormglass.');
+    }
+
     const hourlyData = response.data.hours;
     
+    // Função auxiliar para extrair valores do ECMWF com segurança
+    // Retorna o valor se existir, ou null se não existir (diferente de undefined que causaria erro)
+    const getVal = (obj) => {
+      if (obj && typeof obj === 'object' && 'ecmwf' in obj && obj.ecmwf !== null && obj.ecmwf !== undefined) {
+        return obj.ecmwf;
+      }
+      return null;
+    };
+
     // 1. Encontrar o PICO de onda nos próximos 7 dias
     let maxWaveHeight = -1;
     let peakData = null;
     const dailyMaxes = {};
 
     hourlyData.forEach((hour) => {
-      const height = hour.waveHeight.ecmwf;
+      const h = getVal(hour.waveHeight);
+      const d = getVal(hour.waveDirection);
+      const ws = getVal(hour.windSpeed);
+      const wd = getVal(hour.windDirection);
+
+      // Só aceita o horário se tiver os dados básicos do swell e vento
+      if (h === null || d === null || ws === null || wd === null) {
+        return; 
+      }
+
       const date = hour.time.split('T')[0];
 
       // Rastrear picos diários para o log
-      if (!dailyMaxes[date] || height > dailyMaxes[date]) {
-        dailyMaxes[date] = height;
+      if (!dailyMaxes[date] || h > dailyMaxes[date]) {
+        dailyMaxes[date] = h;
       }
 
       // Rastrear o pico absoluto da semana
-      if (height > maxWaveHeight) {
-        maxWaveHeight = height;
-        peakData = hour;
+      if (h > maxWaveHeight) {
+        maxWaveHeight = h;
+        peakData = {
+          time: hour.time,
+          waveHeight: h,
+          waveDirection: d,
+          windSpeed: ws,
+          windDirection: wd
+        };
       }
     });
 
-    log('Picos diários detectados (Stormglass ECMWF):', 'info');
-    Object.entries(dailyMaxes).forEach(([date, peak]) => {
-      log(`${date}: ${peak}m`, 'info');
-    });
+    if (Object.keys(dailyMaxes).length > 0) {
+      log('Picos diários detectados (Stormglass ECMWF):', 'info');
+      Object.entries(dailyMaxes).forEach(([date, peak]) => {
+        log(`${date}: ${peak}m`, 'info');
+      });
+    }
 
-    if (!peakData) throw new Error('Nenhum dado de pico encontrado no Stormglass.');
+    if (!peakData) {
+      log(`Dados brutos da primeira hora: ${JSON.stringify(hourlyData[0])}`, 'debug');
+      throw new Error('Nenhum dado de pico completo encontrado no Stormglass para o modelo ECMWF.');
+    }
 
     return {
       time: peakData.time,
-      waveHeight: peakData.waveHeight.ecmwf,
-      waveDirection: peakData.waveDirection.ecmwf,
-      waveEnergy: calculateWaveEnergy(peakData.waveHeight.ecmwf),
-      windSpeed: peakData.windSpeed.ecmwf * 1.94384, // Converte m/s para knots (Stormglass usa m/s)
-      windDirection: peakData.windDirection.ecmwf,
+      waveHeight: peakData.waveHeight,
+      waveDirection: peakData.waveDirection,
+      waveEnergy: calculateWaveEnergy(peakData.waveHeight),
+      windSpeed: peakData.windSpeed * 1.94384, // Converte m/s para knots
+      windDirection: peakData.windDirection,
       isForecast: true
     };
 
   } catch (error) {
     if (error.response && error.response.status === 429) {
       throw new Error('Limite de taxa do Stormglass atingido (10/dia).');
+    }
+    // Log detalhado para erros de parsing
+    if (error instanceof TypeError) {
+      log(`Erro de tipo detectado no parsing: ${error.stack}`, 'error');
     }
     throw new Error(`Erro no Stormglass: ${error.message}`);
   }

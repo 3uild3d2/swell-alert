@@ -50,9 +50,10 @@ const start = async () => {
   log('Iniciando conexão com o WhatsApp...', 'info');
   await connectToWhatsApp();
 
-  // 2. Agenda a verificação para rodar 3 vezes ao dia (06:00, 12:00, 18:00)
+  // 2. Agenda a verificação para rodar 3 vezes ao dia (06:00, 12:00, 18:00 Brasília)
+  // Como o servidor geralmente roda em UTC, usamos 09, 15, 21.
   // Isso economiza os créditos da Stormglass API (Limite 10/dia)
-  cron.schedule('0 6,12,18 * * *', () => {
+  cron.schedule('0 9,15,21 * * *', () => {
     checkSwell();
   });
 
