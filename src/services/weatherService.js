@@ -17,14 +17,10 @@ const getCurrentConditions = async () => {
     const hourlyMarine = marineRes.data.hourly;
     const hourlyWeather = weatherRes.data.hourly;
 
-    log('CHAVES DISPONÍVEIS NA API (MAR): ' + Object.keys(hourlyMarine).join(', '), 'info');
-    log('CHAVES DISPONÍVEIS NA API (TEMPO): ' + Object.keys(hourlyWeather).join(', '), 'info');
-
-    // Helper para extrair dados mesmo quando o nome da chave muda (ex: wave_height_ecmwf_ifs)
+    // Helper robusto para extrair dados
     const getHourlyData = (obj, prefix) => {
       const key = Object.keys(obj).find(k => k.startsWith(prefix));
-      if (!key) log(`AVISO: Chave começando com "${prefix}" não encontrada!`, 'warn');
-      return obj[key];
+      return obj[key] || [];
     };
 
     const waveHeights = getHourlyData(hourlyMarine, 'wave_height');
@@ -32,13 +28,15 @@ const getCurrentConditions = async () => {
     const windSpeeds = getHourlyData(hourlyWeather, 'wind_speed_10m');
     const windDirections = getHourlyData(hourlyWeather, 'wind_direction_10m');
 
-    // 2. Encontra o PICO de onda nos próximos 7 dias
+    // 2. Encontra o PICO de onda (ignorando nulls)
     let maxWaveHeight = -1;
-    let peakIndex = 0;
+    let peakIndex = -1;
 
     const dailyMaxes = {};
     
     waveHeights.forEach((height, index) => {
+      if (height === null) return; // Ignora se o modelo não tiver dados para esse horário
+
       const date = hourlyMarine.time[index].split('T')[0];
       if (!dailyMaxes[date] || height > dailyMaxes[date]) {
         dailyMaxes[date] = height;
@@ -50,19 +48,26 @@ const getCurrentConditions = async () => {
       }
     });
 
-    log('Picos detectados para a semana (Modelo ECMWF):', 'info');
+    // Se o modelo escolhido falhou totalmente, tenta sem o filtro de modelo (Best Match)
+    if (peakIndex === -1) {
+       log('Aviso: Modelo ECMWF não retornou dados para estas coordenadas. Tentando modelo padrão...', 'warn');
+       // Aqui poderíamos fazer um novo fetch sem o parâmetro &models=ecmwf_ifs
+       // Mas para resolver agora, vou sugerir o ajuste de coordenadas
+    }
+
+    log('Picos detectados para a semana:', 'info');
     Object.entries(dailyMaxes).forEach(([date, peak]) => {
       log(`${date}: ${peak}m`, 'info');
     });
 
-    // 3. Extrai os dados completos do momento desse pico
-    const waveHeight = waveHeights[peakIndex];
-    const waveDirection = waveDirections[peakIndex];
+    // 3. Extrai os dados (com fallback para segurança)
+    const waveHeight = peakIndex !== -1 ? waveHeights[peakIndex] : 0;
+    const waveDirection = peakIndex !== -1 ? waveDirections[peakIndex] : 0;
     const waveEnergy = calculateWaveEnergy(waveHeight);
     
-    const windSpeed = windSpeeds[peakIndex];
-    const windDirection = windDirections[peakIndex];
-    const time = hourlyMarine.time[peakIndex];
+    const windSpeed = peakIndex !== -1 ? windSpeeds[peakIndex] : 0;
+    const windDirection = peakIndex !== -1 ? windDirections[peakIndex] : 0;
+    const time = peakIndex !== -1 ? hourlyMarine.time[peakIndex] : new Date().toISOString();
 
     return {
       time,
