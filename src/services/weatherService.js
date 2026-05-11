@@ -5,9 +5,9 @@ const { log } = require('../utils/logger');
 
 const getCurrentConditions = async () => {
   try {
-    // 1. Busca previsão de 7 dias para Mar e Vento (Horário)
-    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wave_height,wave_direction,wave_period&timezone=America%2FSao_Paulo`;
-    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timezone=America%2FSao_Paulo`;
+    // 1. Busca previsão de 7 dias usando o modelo ECMWF IFS (Padrão Windy)
+    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wave_height,wave_direction,wave_period&models=ecmwf_ifs&timezone=America%2FSao_Paulo`;
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wind_speed_10m,wind_direction_10m&models=ecmwf_ifs&wind_speed_unit=kn&timezone=America%2FSao_Paulo`;
 
     const [marineRes, weatherRes] = await Promise.all([
       axios.get(marineUrl),
