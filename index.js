@@ -50,16 +50,13 @@ const start = async () => {
   log('Iniciando conexão com o WhatsApp...', 'info');
   await connectToWhatsApp();
 
-  // 2. Agenda a verificação para rodar a cada 30 minutos ("*/30 * * * *")
-  cron.schedule('*/30 * * * *', () => {
+  // 2. Agenda a verificação para rodar 3 vezes ao dia (06:00, 12:00, 18:00)
+  // Isso economiza os créditos da Stormglass API (Limite 10/dia)
+  cron.schedule('0 6,12,18 * * *', () => {
     checkSwell();
   });
 
-  // 3. Aguarda uns segundos e roda a primeira verificação pra garantir
-  setTimeout(() => {
-    log('Swell Alert Bot inicializado. Monitoramento ativo.', 'info');
-    checkSwell();
-  }, 10000); // 10 segundos pra dar tempo de ler o QR code caso seja a primeira vez
+  log('Swell Alert Bot inicializado. Monitoramento agendado (06h, 12h, 18h).', 'info');
 };
 
 start();

@@ -7,4 +7,5 @@ module.exports = {
   triggerWaveHeight: parseFloat(process.env.TRIGGER_WAVE_HEIGHT) || 1.4,
   cooldownHours: parseInt(process.env.COOLDOWN_HOURS) || 24,
   port: parseInt(process.env.PORT) || 3000,
+  stormglassApiKey: process.env.STORMGLASS_API_KEY,
 };
