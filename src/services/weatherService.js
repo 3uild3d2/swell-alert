@@ -2,42 +2,52 @@ const axios = require('axios');
 const config = require('../config');
 const { calculateWaveEnergy } = require('../utils/math');
 
-const fetchMarineData = async () => {
-  const url = `https://marine-api.open-meteo.com/v1/marine?latitude=${config.latitude}&longitude=${config.longitude}&current=wave_height,wave_direction,wave_period&timezone=America%2FSao_Paulo`;
-  const response = await axios.get(url);
-  return response.data.current;
-};
-
-const fetchWeatherData = async () => {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${config.latitude}&longitude=${config.longitude}&current=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timezone=America%2FSao_Paulo`;
-  const response = await axios.get(url);
-  return response.data.current;
-};
-
 const getCurrentConditions = async () => {
   try {
-    const [marine, weather] = await Promise.all([
-      fetchMarineData(),
-      fetchWeatherData()
+    // 1. Busca previsão de 7 dias para Mar e Vento (Horário)
+    const marineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wave_height,wave_direction,wave_period&timezone=America%2FSao_Paulo`;
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${config.latitude}&longitude=${config.longitude}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&timezone=America%2FSao_Paulo`;
+
+    const [marineRes, weatherRes] = await Promise.all([
+      axios.get(marineUrl),
+      axios.get(weatherUrl)
     ]);
 
-    const waveHeight = marine.wave_height;
-    const waveDirection = marine.wave_direction;
+    const hourlyMarine = marineRes.data.hourly;
+    const hourlyWeather = weatherRes.data.hourly;
+
+    // 2. Encontra o PICO de onda nos próximos 7 dias
+    let maxWaveHeight = -1;
+    let peakIndex = 0;
+
+    hourlyMarine.wave_height.forEach((height, index) => {
+      if (height > maxWaveHeight) {
+        maxWaveHeight = height;
+        peakIndex = index;
+      }
+    });
+
+    // 3. Extrai os dados completos do momento desse pico
+    const waveHeight = hourlyMarine.wave_height[peakIndex];
+    const waveDirection = hourlyMarine.wave_direction[peakIndex];
     const waveEnergy = calculateWaveEnergy(waveHeight);
     
-    const windSpeed = weather.wind_speed_10m;
-    const windDirection = weather.wind_direction_10m;
+    // O vento no momento do pico da onda
+    const windSpeed = hourlyWeather.wind_speed_10m[peakIndex];
+    const windDirection = hourlyWeather.wind_direction_10m[peakIndex];
+    const time = hourlyMarine.time[peakIndex];
 
     return {
-      time: marine.time,
+      time,
       waveHeight,
       waveDirection,
       waveEnergy,
       windSpeed,
-      windDirection
+      windDirection,
+      isForecast: true // Flag para indicar que é uma previsão
     };
   } catch (error) {
-    throw new Error(`Erro ao buscar dados do Open-Meteo: ${error.message}`);
+    throw new Error(`Erro ao buscar dados de previsão: ${error.message}`);
   }
 };
 
