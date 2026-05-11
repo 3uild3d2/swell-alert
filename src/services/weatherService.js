@@ -17,9 +17,13 @@ const getCurrentConditions = async () => {
     const hourlyMarine = marineRes.data.hourly;
     const hourlyWeather = weatherRes.data.hourly;
 
+    log('CHAVES DISPONÍVEIS NA API (MAR): ' + Object.keys(hourlyMarine).join(', '), 'info');
+    log('CHAVES DISPONÍVEIS NA API (TEMPO): ' + Object.keys(hourlyWeather).join(', '), 'info');
+
     // Helper para extrair dados mesmo quando o nome da chave muda (ex: wave_height_ecmwf_ifs)
     const getHourlyData = (obj, prefix) => {
       const key = Object.keys(obj).find(k => k.startsWith(prefix));
+      if (!key) log(`AVISO: Chave começando com "${prefix}" não encontrada!`, 'warn');
       return obj[key];
     };
 
