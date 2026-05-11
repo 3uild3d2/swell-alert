@@ -20,11 +20,24 @@ const getCurrentConditions = async () => {
     let maxWaveHeight = -1;
     let peakIndex = 0;
 
+    // Log para depuração (ver picos diários)
+    const dailyMaxes = {};
+    
     hourlyMarine.wave_height.forEach((height, index) => {
+      const date = hourlyMarine.time[index].split('T')[0];
+      if (!dailyMaxes[date] || height > dailyMaxes[date]) {
+        dailyMaxes[date] = height;
+      }
+
       if (height > maxWaveHeight) {
         maxWaveHeight = height;
         peakIndex = index;
       }
+    });
+
+    log('Picos detectados para a semana:', 'info');
+    Object.entries(dailyMaxes).forEach(([date, peak]) => {
+      log(`${date}: ${peak}m`, 'info');
     });
 
     // 3. Extrai os dados completos do momento desse pico
