@@ -3,7 +3,7 @@ const express = require('express');
 const config = require('./src/config');
 const { log } = require('./src/utils/logger');
 const { getCurrentConditions } = require('./src/services/weatherService');
-const { sendWhatsAppAlert } = require('./src/services/alertService');
+const { sendWhatsAppAlert, resetAlertState } = require('./src/services/alertService');
 const { connectToWhatsApp } = require('./src/services/whatsappService');
 
 // Inicializa o app Express (necessário para plataformas como Render/Koyeb manterem o app vivo)
@@ -35,6 +35,7 @@ const checkSwell = async () => {
       log(`Gatilho atingido! Ondas de ${conditions.waveHeight}m (>= ${config.triggerWaveHeight}m).`, 'warn');
       await sendWhatsAppAlert(conditions);
     } else {
+      resetAlertState();
       log(`Condições normais. Ondas de ${conditions.waveHeight}m (Abaixo do gatilho de ${config.triggerWaveHeight}m).`, 'info');
     }
     

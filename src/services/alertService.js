@@ -3,25 +3,55 @@ const { log } = require('../utils/logger');
 const { degreesToDirection, formatPortugueseDate } = require('../utils/math');
 const { sendGroupMessage } = require('./whatsappService');
 
-// Armazena o timestamp do último alerta enviado
+// Estado interno do monitoramento
 let lastAlertTimestamp = null;
+let lastAlertWaveHeight = 0;
+let isSwellActive = false;
 
-const checkCooldown = () => {
-  if (!lastAlertTimestamp) return true; // Nunca enviou
-  
+/**
+ * Reseta o estado do swell quando o mar baixa do gatilho
+ */
+const resetAlertState = () => {
+  if (isSwellActive) {
+    log('O mar baixou do gatilho. Estado de alerta resetado para o próximo swell.', 'info');
+    isSwellActive = false;
+    lastAlertWaveHeight = 0;
+    lastAlertTimestamp = null; // Opcional: permite alerta imediato na próxima subida
+  }
+};
+
+/**
+ * Verifica se deve enviar o alerta baseado no tempo e na evolução da altura
+ */
+const shouldAlert = (currentHeight) => {
+  // Caso 1: Novo swell (estava calmo e subiu)
+  if (!isSwellActive) return true;
+
+  // Caso 2: Swell em andamento - Verifica cooldown de 6 horas
   const now = Date.now();
   const cooldownMs = config.cooldownHours * 60 * 60 * 1000;
-  
-  return (now - lastAlertTimestamp) >= cooldownMs;
+  const cooldownPassed = !lastAlertTimestamp || (now - lastAlertTimestamp) >= cooldownMs;
+
+  if (cooldownPassed) {
+    // Só avisa se o mar SUBIR em relação ao último alerta enviado
+    if (currentHeight > lastAlertWaveHeight) {
+      log(`Cooldown de ${config.cooldownHours}h passou e o mar subiu (${lastAlertWaveHeight}m -> ${currentHeight}m). Enviando novo alerta.`, 'info');
+      return true;
+    } else {
+      log(`Cooldown de ${config.cooldownHours}h passou, mas o mar não subiu (${currentHeight}m <= ${lastAlertWaveHeight}m). Silêncio mantido.`, 'info');
+      return false;
+    }
+  }
+
+  return false;
 };
 
 const sendWhatsAppAlert = async (conditions) => {
-  if (!checkCooldown()) {
-    log(`Alerta não enviado: Cooldown de ${config.cooldownHours}h ainda ativo.`, 'info');
+  const { waveHeight, waveDirection, waveEnergy, windSpeed, windDirection, time } = conditions;
+
+  if (!shouldAlert(waveHeight)) {
     return false;
   }
-
-  const { waveHeight, waveDirection, waveEnergy, windSpeed, windDirection, time } = conditions;
 
   const dateStr = formatPortugueseDate(time);
   const waveDirCard = degreesToDirection(waveDirection);
@@ -30,7 +60,6 @@ const sendWhatsAppAlert = async (conditions) => {
   const waveHeightFormatted = Number(waveHeight).toFixed(1);
   const waveEnergyFormatted = Number(waveEnergy).toLocaleString('pt-BR');
 
-  // Formato da mensagem desejado pelo usuário
   const message = `*🌊 ALERTA DE SWELL - UBATUBA*
 
 *Altura:* ${waveHeightFormatted}m
@@ -43,6 +72,8 @@ const sendWhatsAppAlert = async (conditions) => {
     const sent = await sendGroupMessage(config.whatsappGroupName, message);
     if (sent) {
       lastAlertTimestamp = Date.now();
+      lastAlertWaveHeight = waveHeight;
+      isSwellActive = true;
       return true;
     }
     return false;
@@ -53,5 +84,6 @@ const sendWhatsAppAlert = async (conditions) => {
 };
 
 module.exports = {
-  sendWhatsAppAlert
+  sendWhatsAppAlert,
+  resetAlertState
 };
