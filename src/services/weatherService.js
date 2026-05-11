@@ -74,6 +74,10 @@ const getCurrentConditions = async () => {
       isForecast: true // Flag para indicar que é uma previsão
     };
   } catch (error) {
+    if (error.response) {
+      log(`Erro na API do Open-Meteo (${error.response.status}): ${JSON.stringify(error.response.data)}`, 'error');
+    }
+    log(`Stack do erro: ${error.stack}`, 'error');
     throw new Error(`Erro ao buscar dados de previsão: ${error.message}`);
   }
 };
