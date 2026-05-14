@@ -84,7 +84,7 @@ const getCurrentConditions = async () => {
       waveHeight: peakData.waveHeight,
       waveDirection: peakData.waveDirection,
       waveEnergy: calculateWaveEnergy(peakData.waveHeight),
-      windSpeed: peakData.windSpeed * 1.94384, // Converte m/s para knots
+      windSpeed: Math.round(peakData.windSpeed * 1.94384), // Converte m/s para knots e arredonda
       windDirection: peakData.windDirection,
       isForecast: true
     };

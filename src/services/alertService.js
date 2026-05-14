@@ -70,7 +70,7 @@ const sendWhatsAppAlert = async (conditions) => {
 *Altura:* ${waveHeightFormatted}m
 *Data:* ${dateStr}
 *Direção do swell:* ${waveDirCard}
-*Vento:* ${windSpeed}kts ${windDirCard}
+*Vento:* ${windSpeed} kts ${windDirCard}
 *Energia da onda:* ${waveEnergyFormatted} J`;
 
   try {
