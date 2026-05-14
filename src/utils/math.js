@@ -26,14 +26,38 @@ const calculateWaveEnergy = (waveHeight) => {
  * Formata a data atual em português
  */
 const formatPortugueseDate = (dateString) => {
-  const date = dateString ? new Date(dateString) : new Date();
+  const targetDate = dateString ? new Date(dateString) : new Date();
+  const now = new Date();
   
+  // Função para zerar o horário para comparação apenas de data
+  const resetTime = (d) => {
+    const newDate = new Date(d);
+    newDate.setHours(0, 0, 0, 0);
+    return newDate;
+  };
+
+  const todayReset = resetTime(now);
+  const targetReset = resetTime(targetDate);
+  
+  const diffTime = targetReset.getTime() - todayReset.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+  let relativeStr = '';
+  if (diffDays === 0) {
+    relativeStr = '(hoje)';
+  } else if (diffDays === 1) {
+    relativeStr = '(amanhã)';
+  } else if (diffDays > 1) {
+    relativeStr = `(em ${diffDays} dias)`;
+  } else if (diffDays < 0) {
+    relativeStr = '(passado)'; // Apenas para segurança, não deve ocorrer no forecast
+  }
+
   const daysOfWeek = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-  const dayOfWeek = daysOfWeek[date.getDay()];
-  const dayOfMonth = date.getDate();
+  const dayOfWeek = daysOfWeek[targetDate.getDay()];
+  const dayOfMonth = targetDate.getDate();
   
-  // Como estamos verificando as condições atuais, será "hoje"
-  return `${dayOfWeek}, dia ${dayOfMonth} (hoje)`;
+  return `${dayOfWeek}, dia ${dayOfMonth} ${relativeStr}`.trim();
 };
 
 module.exports = {
