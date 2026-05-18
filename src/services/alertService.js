@@ -21,7 +21,7 @@ const resetAlertState = () => {
 };
 
 /**
- * Verifica se deve enviar o alerta baseado no tempo E na evolução da altura
+ * Verifica se deve enviar o alerta baseado na evolução da altura
  */
 const shouldAlert = (currentHeight) => {
   // Caso 1: Novo swell ou reset após queda (Avisa na hora)
@@ -30,23 +30,16 @@ const shouldAlert = (currentHeight) => {
     return true;
   }
 
-  // Caso 2: Swell em andamento
-  const now = Date.now();
-  const cooldownMs = config.cooldownHours * 60 * 60 * 1000;
-  const cooldownPassed = !lastAlertTimestamp || (now - lastAlertTimestamp) >= cooldownMs;
+  // Caso 2: Swell em andamento, avisa apenas se a onda subir
   const isRising = currentHeight > lastAlertWaveHeight;
 
-  if (cooldownPassed && isRising) {
-    log(`Cooldown de ${config.cooldownHours}h passou E o mar subiu (${lastAlertWaveHeight}m -> ${currentHeight}m).`, 'info');
+  if (isRising) {
+    log(`O mar subiu durante o swell ativo (${lastAlertWaveHeight}m -> ${currentHeight}m). Enviando novo alerta.`, 'info');
     return true;
   }
 
   // Caso contrário, mantém silêncio
-  if (!cooldownPassed) {
-    log(`Swell ativo, mas aguardando cooldown de ${config.cooldownHours}h.`, 'info');
-  } else {
-    log(`Cooldown passou, mas o mar não subiu o suficiente (${currentHeight}m <= ${lastAlertWaveHeight}m).`, 'info');
-  }
+  log(`Swell ativo, mas o mar não subiu o suficiente (${currentHeight}m <= ${lastAlertWaveHeight}m).`, 'info');
   
   return false;
 };
